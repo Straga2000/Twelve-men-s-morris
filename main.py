@@ -1,3 +1,10 @@
+import pygame
+import interfaceTest
+
+FILLED = 0
+CONTOUR = 3
+
+
 class Piece:
     def __init__(self, position, id):
         self.position = position
@@ -67,12 +74,14 @@ class Player:
 
 
 class Game:
-    def __init__(self, playerType1, playerType2):
+    def __init__(self, playerType1, playerType2, gameInterface=None):
         self.winPosValue = self.createWinCases()
         self.freePos = [True for x in range(0, 24)]
         self.player1 = Player(1, playerType1)
         self.player2 = Player(-1, playerType2)
+        self.gameInterface = gameInterface
         self.turn = True
+        self.option = None
 
     def createWinCases(self):
         winPosValue = {}
@@ -111,6 +120,9 @@ class Game:
                 validMoves.append(pos + 1)
 
         return validMoves
+
+    def getPieceList(self):
+        pass
 
     def findPosition(self, tuple, pos):
         return tuple[0] == pos or tuple[1] == pos or tuple[2] == pos
@@ -157,13 +169,13 @@ class Game:
         else:
             raise Exception("Not a valid position")
 
-    def movePieceMove(self, player, id, newPos):
+    def movePieceMove(self, player, position, newPos):
 
-        piece = player.piece[player.getPieceById(id)]
+        piece = player.piece[player.getPieceByPos(position)]
 
         if newPos in self.getValidMoves(piece.position) and piece.anteriorPosition != newPos:
-            player.movePiece(id, newPos)
-            self.updateWinCases(oldPos, newPos, player.color)
+            player.movePiece(piece.id, newPos)
+            self.updateWinCases(piece.anteriorPosition, newPos, player.color)
 
         else:
             raise Exception("Not a valid position")
@@ -182,21 +194,29 @@ class Game:
         else:
             raise Exception("Not a piece of the opponent")
 
-    def makeMove(self, option, id, newPos, delPos=None):
-
+    def getPlayersByTurn(self):
         if self.turn:
-            playerWithTurn = self.player1
-            playerWithoutTurn = self.player2
-
+            return self.player1, self.player2
         else:
-            playerWithTurn = self.player2
-            playerWithoutTurn = self.player1
+            return self.player2, self.player1
+
+    def setPlayersByTurn(self, player1, player2):
+        if self.turn:
+            self.player1 = player1
+            self.player2 = player2
+        else:
+            self.player2 = player1
+            self.player1 = player2
+
+    def makeMove(self, option, clickedPos, newPos=None, delPos=None):
+
+        playerWithTurn, playerWithoutTurn = self.getPlayersByTurn()
 
         # there are 2 options: put a piece on the table("put") or move a piece("move")
-        if option is "move":
-            self.movePieceMove(playerWithTurn, id, newPos)
-        elif option is "put":
-            self.putPieceMove(playerWithTurn, newPos)
+        if option == "move":
+            self.movePieceMove(playerWithTurn, clickedPos, newPos)
+        elif option == "put":
+            self.putPieceMove(playerWithTurn, clickedPos)
 
         if self.findPlayerWin(playerWithTurn):
 
@@ -206,16 +226,47 @@ class Game:
             else:
                 self.chooseToDeleteMove(playerWithoutTurn)
 
-        if self.turn:
-            self.player1 = playerWithTurn
-            self.player2 = playerWithoutTurn
-
-        else:
-            self.player2 = playerWithTurn
-            self.player1 = playerWithoutTurn
+        self.setPlayersByTurn(playerWithTurn, playerWithoutTurn)
 
         # update turn
         self.turn = not self.turn
+        self.option = None
+
+    def gameLoop(self):
+
+        # render pieces, table, etc.
+        self.gameInterface.player1Pieces = [x for x in self.player1.getPositionList() if x != - 1]
+        self.gameInterface.player2Pieces = [x for x in self.player2.getPositionList() if x != - 1]
+
+        self.gameInterface.selectedPosition = None
+        self.gameInterface.selectedPiece = None
+
+        # get key pressed as an option
+        if self.gameInterface.keyPressed is not None:
+            self.option = self.gameInterface.keyPressed
+
+        # print("something")
+        if self.gameInterface.mousePosition is not None:
+            if self.option is not None:
+
+                if self.option == pygame.K_p:
+                    print("is putting")
+                    put = self.gameInterface.getPut()
+
+                    # def makeMove(self, option, clickedPos, newPos, delPos=None):
+                    if put is not None:
+                        self.makeMove("put", put)
+                    # self.makeMove("put", self.gameInterface.getClickedTablePosition(), )
+                elif self.option == pygame.K_m:
+                    print("is moving")
+                    move = self.gameInterface.getMove(self.getPlayersByTurn()[0].color, )
+
+        # render objects
+        self.gameInterface.renderGame()
+
+    def renderGameLoop(self):
+        self.gameInterface.render(self.gameLoop)
 
 
-g = Game("bot", "bot")
+g = Game("bot", "bot", interfaceTest.GameInterface(600, 400))
+g.renderGameLoop()
