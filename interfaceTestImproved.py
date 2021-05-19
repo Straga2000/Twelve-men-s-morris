@@ -96,13 +96,14 @@ class GameInterface(Interface):
                                   15: (1, 3),
                                   16: (2, 2), 17: (3, 2), 18: (4, 2), 19: (4, 3), 20: (4, 4), 21: (3, 4), 22: (2, 4),
                                   23: (2, 3)}
-        self.player1Pieces = []
-        self.player2Pieces = []
+        self.pieces = []
+        self.freePos = []
         self.validMoves = []
-        self.freePositions = []
 
         self.selectedPiece = None
         self.selectedPosition = None
+
+        self.deleteValue = None
 
         super().__init__(width, height)
 
@@ -135,58 +136,77 @@ class GameInterface(Interface):
             return None
 
         self.validMoves = getValidMoves(self.selectedPiece)
-        print(self.validMoves, playerAnterior)
+        #print(self.validMoves, playerAnterior)
 
         if playerAnterior is not None:
             if playerAnterior in self.validMoves:
                 self.validMoves.remove(playerAnterior)
 
-        if playerColor == 1:
-            if self.selectedPiece not in self.player1Pieces:
-                return None
-        elif self.selectedPiece not in self.player2Pieces:
+        if self.pieces[self.selectedPiece] is None:
+            return None
+
+        if playerColor != self.pieces[self.selectedPiece].playerColor:
             return None
 
         return self.selectedPiece
 
     def getPositionToMove(self):
 
-        if self.selectedPiece is not None:
+        self.selectedPosition = self.getClickedTablePosition()
+        self.cleanClickPosition()
 
-            self.selectedPosition = self.getClickedTablePosition()
-            self.cleanClickPosition()
-
-            if self.selectedPosition in self.validMoves:
-                return self.selectedPosition
+        if self.selectedPosition in self.validMoves:
+            return self.selectedPosition
 
         return None
 
     def getMove(self, playerColor, getValidMoves, playerAnterior):
         if self.selectedPiece is not None:
             self.getPositionToMove()
+
+            if self.selectedPosition is not None:
+                return self.selectedPiece, self.selectedPosition
+
         else:
             self.getPieceToMove(playerColor, getValidMoves, playerAnterior)
 
-    def getPut(self, freePositions):
+        return None
 
-        #self.freePositions = freePositions
+    def getPut(self):
 
         if self.selectedPosition is None:
-            self.freePositions = freePositions
+
+            self.selectedPosition = self.getClickedTablePosition()
+            #print(self.selectedPosition)
+            self.cleanClickPosition()
+
+            if self.selectedPosition is not None:
+                #print(len(self.pieces))
+                if self.pieces[self.selectedPosition] is None:
+                    return self.selectedPosition
+
+        return None
+
+    def getDelete(self, playerColor):
+
+        if self.selectedPosition is None:
 
             self.selectedPosition = self.getClickedTablePosition()
             self.cleanClickPosition()
 
-            if self.selectedPosition in freePositions:
-                return self.selectedPosition
+            if self.selectedPosition is not None:
+                if self.pieces[self.selectedPosition] is None:
+                    return None
+                elif self.pieces[self.selectedPosition].playerColor != playerColor:
+                    return self.selectedPosition
 
         return None
 
+
     def clearRender(self):
-        self.player1Pieces = []
-        self.player2Pieces = []
+        self.pieces = []
+        self.freePos = []
         self.validMoves = []
-        self.freePositions = []
 
         self.selectedPiece = None
         self.selectedPosition = None
@@ -198,17 +218,12 @@ class GameInterface(Interface):
         self.renderTable(x, y)
         self.renderSpacesTable(x, y)
         self.renderValidMoves(x, y, self.validMoves)
-        self.renderValidMoves(x, y, self.freePositions)
+        self.renderValidMoves(x, y, self.freePos)
 
-        self.renderPlayerPieces(x, y, self.player1Pieces, "#FFFFFF")
-        self.renderPlayerPieces(x, y, self.player2Pieces, "#000000")
-
-        # newPos = self.getClickedTablePosition(self.tablePosition[0], self.tablePosition[1])
-        # if newPos is not None:
-        #     print(newPos)
-
-        # for i in range(15, 20):
-        #    self.renderPiece(self.tablePosition[0], self.tablePosition[1], i, "#FFFFFF")
+        self.renderPlayerPieces(x, y, [i for i in range(0, len(self.pieces)) if self.pieces[i] is not None
+                                       and self.pieces[i].playerColor is True], "#FFFFFF")
+        self.renderPlayerPieces(x, y, [i for i in range(0, len(self.pieces)) if self.pieces[i] is not None
+                                       and self.pieces[i].playerColor is False], "#000000")
 
     def updateRenderGame(self):
         self.validMoves = []

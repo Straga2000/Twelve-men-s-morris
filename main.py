@@ -4,7 +4,6 @@ import interfaceTest
 FILLED = 0
 CONTOUR = 3
 
-
 class Piece:
     def __init__(self, position, id):
         self.position = position
@@ -25,6 +24,12 @@ class Player:
         self.type = type
         self.color = color
         self.piece = [Piece(-1, x) for x in range(0, 12)]
+        self.anteriorPiece = None
+
+    def verifyAnteriorMove(self, piece, newPos):
+        if self.anteriorPiece is None:
+            return False
+        return piece.id == self.anteriorPiece and piece.anteriorPosition == newPos
 
     def movePiece(self, id, newPos):
         self.piece[self.getPieceById(id)].changePosition(newPos)
@@ -121,6 +126,9 @@ class Game:
 
         return validMoves
 
+    def getFreePositions(self):
+        return [i for i in range(0, 24) if self.freePos[i] is True]
+
     def getPieceList(self):
         pass
 
@@ -149,12 +157,16 @@ class Game:
 
             if self.winPosValue[key] == player.color * 3:
 
+                allLocked = False
+
                 for i in range(0, len(player.piece)):
 
                     if self.findPosition(key, player.piece[i].position):
+                        # if all are locked, allLocked is False
+                        allLocked = allLocked or not player.piece[i].isLocked
                         player.piece[i].isLocked = True
 
-                return True
+                return allLocked
 
         return False
 
@@ -165,7 +177,7 @@ class Game:
         if self.freePos[newPos]:
             player.putPiece(newPos)
             self.updateWinCases(-1, newPos, player.color)
-
+            player.anteriorPiece = None
         else:
             raise Exception("Not a valid position")
 
@@ -173,10 +185,10 @@ class Game:
 
         piece = player.piece[player.getPieceByPos(position)]
 
-        if newPos in self.getValidMoves(piece.position) and piece.anteriorPosition != newPos:
+        if newPos in self.getValidMoves(piece.position) and not player.verifyAnteriorMove(piece, newPos):
             player.movePiece(piece.id, newPos)
             self.updateWinCases(piece.anteriorPosition, newPos, player.color)
-
+            player.anteriorPiece = piece.id
         else:
             raise Exception("Not a valid position")
 
@@ -235,31 +247,42 @@ class Game:
     def gameLoop(self):
 
         # render pieces, table, etc.
+        # self.gameInterface.updateRenderGame()
         self.gameInterface.player1Pieces = [x for x in self.player1.getPositionList() if x != - 1]
         self.gameInterface.player2Pieces = [x for x in self.player2.getPositionList() if x != - 1]
-
-        self.gameInterface.selectedPosition = None
-        self.gameInterface.selectedPiece = None
 
         # get key pressed as an option
         if self.gameInterface.keyPressed is not None:
             self.option = self.gameInterface.keyPressed
 
         # print("something")
-        if self.gameInterface.mousePosition is not None:
-            if self.option is not None:
+        # if self.gameInterface.mousePosition is not None:
+        if self.option is not None:
 
-                if self.option == pygame.K_p:
-                    print("is putting")
-                    put = self.gameInterface.getPut()
+            if self.option == pygame.K_p:
+                # print("is putting")
 
-                    # def makeMove(self, option, clickedPos, newPos, delPos=None):
-                    if put is not None:
-                        self.makeMove("put", put)
-                    # self.makeMove("put", self.gameInterface.getClickedTablePosition(), )
-                elif self.option == pygame.K_m:
-                    print("is moving")
-                    move = self.gameInterface.getMove(self.getPlayersByTurn()[0].color, )
+                put = self.gameInterface.getPut(self.getFreePositions())
+
+                if self.gameInterface.selectedPosition is not None:
+                    self.makeMove("put", put)
+                    self.gameInterface.clearRender()
+
+            elif self.option == pygame.K_m:
+                # print("is moving")
+                player = self.getPlayersByTurn()[0]
+
+                if player.anteriorPiece is not None:
+                    anterior = player.piece[player.getPieceById(player.anteriorPiece)].anteriorPosition
+                else:
+                    anterior = None
+
+                self.gameInterface.getMove(player.color, self.getValidMoves, anterior)
+
+                if self.gameInterface.selectedPiece is not None and self.gameInterface.selectedPosition is not None:
+                    # print(self.gameInterface.selectedPiece, self.gameInterface.selectedPosition, self.gameInterface.validMoves)
+                    self.makeMove("move", self.gameInterface.selectedPiece, self.gameInterface.selectedPosition)
+                    self.gameInterface.clearRender()
 
         # render objects
         self.gameInterface.renderGame()
